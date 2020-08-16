@@ -1,82 +1,185 @@
-'use strict'
+  'use strict'
 
-var express = require('express');
-var router = express.Router();
-var User = require('../models/user');
-var jwt = require('jsonwebtoken');
-var bcrypt = require('bcrypt');
+  var express = require('express');
+  var router = express.Router();
+  var User = require('../models/user');
+  var jwt = require('jsonwebtoken');
+  var bcrypt = require('bcrypt');
+  const user = require('../models/user');
+  const secret = 'secret';
+  const {
+    response
+  } = require('express');
 
-router.get('/', function (req, res) {
+  //===================================================
+  router.get('/', function (req, res) {
+    let response = [];
 
-  let response = [];
-
-  User.find({})
-    .then(data => {
-      response = data.map(item => {
-        return {
-          _id: item._id,
-          email: item.email,
-          password: item.password,
-          token: item.token
-        }
+    User.find({})
+      .then(data => {
+        response = data.map(item => {
+          return {
+            _id: item._id,
+            email: item.email,
+            password: item.password,
+            token: item.token
+          }
+        })
+        res.status(200).json(response);
       })
-      res.status(200).json(response);
-    })
-    .catch(err => {
-      res.status(500).json({
-        response
-      });
-    })
-})
-
-router.post('/register', function (req, res, next) {
-
-  let {
-    email,
-    password,
-    retypepassword
-  } = req.body;
-
-  let response = {
-    message: "",
-    data: {},
-    token: ""
-  }
-
-  if (password != retypepassword) return res.status(500).json({
-    error: true,
-    message: "password doesn't match"
+      .catch(err => {
+        res.status(500).json({
+          response
+        });
+      })
   })
 
-  User.findOne({ email })
-    .then(result => {
-      if (result) {
-        response.message = 'email already exist';
-        return res.status(200).json(response)
-      } else {
-        var token = jwt.sign({ email: email }, 'this secret');
-        let user = new User({
-          email: email,
-          password: password,
-          token: token
-        })
-        user.save()
-          .then(data => {
-            response.message = "register success"
-            response.data.email = email
-            response.token = token
-            res.status(201).json(response)
-            console.log(data);
-          })
-      }
-    })
-    .catch(err => {
-      res.status(500).json({
-        error: true,
-        message: 'error users findOne'
-      })
-    })
-    
+//===========================================================
+  router.post('/register', function (req, res, next) {
+    let { 
+      email,
+      password,
+      retypepassword
+    } = req.body;
 
-});
-module.exports = router;
+    let response = {
+      message: "",
+      data: {},
+      token: ""
+    }
+    if (password != retypepassword) return res.status(500).json({
+      error: true,
+      message: "password doesn't match"
+    })
+    User.findOne({
+        email
+      })
+      .then(result => {
+        if (result) {
+          response.message = 'email already exist';
+          return res.status(200).json(response)
+        } else {
+          var token = jwt.sign({email: email}, secret);
+          let user = new User({
+            email: email,
+            password: password,
+            token: token
+          })
+          user.save()
+            .then(data => {
+              response.message = "register success"
+              response.data.email = email
+              response.token = token
+              res.status(201).json(response)
+              console.log(data);
+            })
+        }
+      })
+      .catch(err => {
+        res.status(500).json({
+          error: true,
+          message: 'error users findOne'
+        })
+      })
+  });
+
+//===================================================
+
+  router.post('/login', function (req, res, next) {
+    let {
+      email,
+      password
+    } = req.body;
+    let response = {
+      message: "",
+      data: {},
+      token: ""
+    }
+
+    User.findOne({ email })
+      .then(data => {
+
+        console.log('data1', data);
+
+        bcrypt.compare(password, data.password)
+          .then(isPasswordTrue => {
+            if (isPasswordTrue) {
+              if (data.token) {
+                response.token = data.token;
+                response.data.email = email;
+                response.message = 'login success';
+                res.status(201).json(response)
+              }
+            } else {
+              response.message = " authentication failed";
+              res.status(200).json(response);
+            }
+
+          })
+          .catch(err => {
+            response.message = "Authentication failed";
+            res.status(500).json(response);
+          })
+      })
+      .catch(err => {
+        response.message = "email doesn't match";
+        res.status(200).json(response);
+      })
+  });
+
+// ==============================================
+
+  router.post('/check', function (req, res, next) {
+    let token = req.header('token')
+    let response = {
+      valid: false
+    }
+    console.log(token)
+  
+    if (!token) {
+      res.status(500).json(response)
+    } else {
+      const decode = jwt.verify(token, secret);
+      console.log(decode)
+      // console.log({email : decode.emai});
+      User.find({ email: decode.email })
+        .then(result => {
+          response.valid = true
+          res.status(200).json(response)
+         
+        })
+        .catch(err => {
+          res.status(500).json({ response })
+        })
+    }
+  });
+
+  //=====================================
+
+  router.get('/logout', function (req, res, next) {
+    let token = req.header('token')
+    let response = {
+      logout: false
+    }
+  
+    if (!token) {
+      res.status(500).json(response);
+    } else {
+      const decode = jwt.verify(token, secret)
+      console.log('decode', decode);
+      User.findOneAndUpdate({ email: decode.email }, { token: "" }, { new: true })
+        .then(result => {
+          
+          console.log(result)
+
+          response.logout = true
+          res.status(200).json(response)
+        })
+        .catch(err => {
+          res.status(500).json(response)
+        })
+    }
+  });
+  
+
+  module.exports = router;
