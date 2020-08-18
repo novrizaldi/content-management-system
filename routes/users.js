@@ -5,7 +5,6 @@
   var User = require('../models/user');
   var jwt = require('jsonwebtoken');
   var bcrypt = require('bcrypt');
-  const user = require('../models/user');
   const secret = 'secret';
   const {
     response
@@ -57,6 +56,7 @@
       .then(result => {
         if (result) {
           response.message = 'email already exist';
+          console.log('email ditemukan', result);
           return res.status(200).json(response)
         } else {
           var token = jwt.sign({email: email}, secret);
@@ -130,7 +130,7 @@
 // ==============================================
 
   router.post('/check', function (req, res, next) {
-    let token = req.header('token')
+    let token = req.body('token')
     let response = {
       valid: false
     }

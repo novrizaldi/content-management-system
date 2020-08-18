@@ -6,6 +6,10 @@ const mongoose = require('mongoose');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var dataRouter = require('./routes/datas');
+var dataDateRouter = require('./routes/datadates');
+var mapRouter = require('./routes/maps');
+
 
 mongoose.connect('mongodb://localhost/cms', {useNewUrlParser: true});
 
@@ -25,5 +29,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/data', dataRouter);
+app.use('/api/datadate', dataDateRouter);
+app.use('/api/map', mapRouter);
 
 module.exports = app;
